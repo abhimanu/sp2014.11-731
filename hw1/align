@@ -11,6 +11,7 @@ optparser.add_option("-n", "--num_sentences", dest="num_sents", default=sys.maxi
 
 sys.stderr.write("Training with Dice's coefficient...")
 bitext = [[sentence.strip().split() for sentence in pair.split(' ||| ')] for pair in open(opts.bitext)][:opts.num_sents]
+print bitext
 f_count = defaultdict(int)
 e_count = defaultdict(int)
 fe_count = defaultdict(int)
