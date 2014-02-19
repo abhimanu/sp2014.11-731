@@ -24,6 +24,7 @@ fe_count = defaultdict(int)
 
 
 for (n, (f, e)) in enumerate(bitext):
+	f.append(NULL)
 	for f_i in set(f):
 		f_count[f_i] += 1
 		for e_j in set(e):
@@ -38,10 +39,10 @@ for (k, (f_i, e_j)) in enumerate(fe_count.keys()):
 	dice_sum[e_j] += dice[(f_i,e_j)]
 
 
-t_ef=defaultdict(float)
-total=defaultdict(float)
+t_ef={}
+total={}
 total_s=defaultdict(float)
-ef_count = defaultdict(float)
+ef_count = {}
 
 w_e=set()
 w_f=set()
@@ -52,28 +53,39 @@ for (n, (f,e)) in enumerate(bitext):
 	for w in e:
 		w_e.add(w)
 	w_f.add(NULL)
+
 #	print "sentence ", n
 sys.stderr.write( "len(w_e), len(w_f) %i,%i\n"%(len(w_e), len(w_f)))
-for e in w_e:
-	f_sum=0
-	for f in w_f:
-		t_ef[(e,f)]=dice[(f,e)]
-		f_sum += dice[(f,e)]
-	t_ef[(e,NULL)]=1.0/len(w_f)
-	f_sum += 1.0/len(w_f)
-	for f in w_f:
-		t_ef[(e,f)]=t_ef[(e,f)]/f_sum
+#for e in w_e:
+#	f_sum=0
+#	for f in w_f:
+#		t_ef[(e,f)]=dice[(f,e)]
+#		f_sum += dice[(f,e)]
+#	t_ef[(e,NULL)]=1.0/len(w_f)
+#	f_sum += 1.0/len(w_f)
+#	for f in w_f:
+#		t_ef[(e,f)]=t_ef[(e,f)]/f_sum
+
+
+for (k, (f, e)) in enumerate(dice.keys()):
+	t_ef[(e,f)]=dice[(f,e)]/dice_sum[e]
+	ef_count[(e,f)]=0
+	total[f]=0
 
 #print "done initializing"
 
 for iterate in xrange(0,ITER):
 #	print "in iteration,", iterate
-	for (f_s,e_s) in bitext:
-		f_s.append(NULL)
-		for f in f_s:
-			for e in e_s:
-				ef_count[(e,f)]=0
-			total[f]=0
+#	for (f_s,e_s) in bitext:
+#		f_s.append(NULL)
+#		for f in f_s:
+#			for e in e_s:
+#				ef_count[(e,f)]=0
+#			total[f]=0
+	for (k, (e,f)) in enumerate(ef_count.keys()):
+		ef_count[(e,f)]=0
+		total[f]=0
+	
 	for (f_s,e_s) in bitext:
 		f_s.append(NULL)
 		for e in e_s:
@@ -84,11 +96,12 @@ for iterate in xrange(0,ITER):
 			for f in f_s:
 				ef_count[(e,f)] += t_ef[(e,f)]/total_s[e]
 				total[f] += t_ef[(e,f)]/total_s[e]
-	for (f_s,e_s) in bitext:
-		f_s.append(NULL)
-		for f in f_s:
-			for e in e_s:
-				t_ef[(e,f)] = ef_count[(e,f)]/total[f]
+#	for (f_s,e_s) in bitext:
+#		f_s.append(NULL)
+#		for f in f_s:
+#			for e in e_s:
+	for (k, (e,f)) in enumerate(ef_count.keys()):
+		t_ef[(e,f)] = ef_count[(e,f)]/total[f]
 	sys.stderr.write(".")
 
 for (f, e) in bitext:
