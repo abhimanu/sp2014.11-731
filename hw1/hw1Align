@@ -5,6 +5,7 @@ from collections import defaultdict
 #from sets import Set
 
 ITER=5
+NULL="NULL"
 
 optparser = optparse.OptionParser()
 optparser.add_option("-b", "--bitext", dest="bitext", default="data/dev-test-train.de-en", help="Parallel corpus (default data/dev-test-train.de-en)")
@@ -15,11 +16,27 @@ optparser.add_option("-n", "--num_sentences", dest="num_sents", default=sys.maxi
 sys.stderr.write("Training with Dice's coefficient...")
 bitext = [[sentence.strip().split() for sentence in pair.split(' ||| ')] for pair in open(opts.bitext)][:opts.num_sents]
 #print bitext
-#f_count = defaultdict(int)
-#e_count = defaultdict(int)
-#fe_count = defaultdict(int)
+f_count = defaultdict(int)
+e_count = defaultdict(int)
+fe_count = defaultdict(int)
 
 #print "loaded the sentences"
+
+
+for (n, (f, e)) in enumerate(bitext):
+	for f_i in set(f):
+		f_count[f_i] += 1
+		for e_j in set(e):
+			fe_count[(f_i,e_j)] += 1
+	for e_j in set(e):
+		e_count[e_j] += 1
+
+dice = defaultdict(float)
+dice_sum = defaultdict(float)
+for (k, (f_i, e_j)) in enumerate(fe_count.keys()):
+	dice[(f_i,e_j)] = 2.0 * fe_count[(f_i, e_j)] / (f_count[f_i] + e_count[e_j])
+	dice_sum[e_j] += dice[(f_i,e_j)]
+
 
 t_ef=defaultdict(float)
 total=defaultdict(float)
@@ -34,21 +51,31 @@ for (n, (f,e)) in enumerate(bitext):
 		w_f.add(w)
 	for w in e:
 		w_e.add(w)
+	w_f.add(NULL)
 #	print "sentence ", n
-#print "len(w_e), len(w_f), ", len(w_e), len(w_f)
+sys.stderr.write( "len(w_e), len(w_f) %i,%i\n"%(len(w_e), len(w_f)))
 for e in w_e:
+	f_sum=0
 	for f in w_f:
-		t_ef[(e,f)]=1.0/len(w_f)
+		t_ef[(e,f)]=dice[(f,e)]
+		f_sum += dice[(f,e)]
+	t_ef[(e,NULL)]=1.0/len(w_f)
+	f_sum += 1.0/len(w_f)
+	for f in w_f:
+		t_ef[(e,f)]=t_ef[(e,f)]/f_sum
 
 #print "done initializing"
 
 for iterate in xrange(0,ITER):
 #	print "in iteration,", iterate
-	for f in w_f:
-		for e in w_e:
-			ef_count[(e,f)]=0
-		total[f]=0
-	for (f_s,e_s) in bitext: 
+	for (f_s,e_s) in bitext:
+		f_s.append(NULL)
+		for f in f_s:
+			for e in e_s:
+				ef_count[(e,f)]=0
+			total[f]=0
+	for (f_s,e_s) in bitext:
+		f_s.append(NULL)
 		for e in e_s:
 			total_s[e]=0
 			for f in f_s:
@@ -57,12 +84,15 @@ for iterate in xrange(0,ITER):
 			for f in f_s:
 				ef_count[(e,f)] += t_ef[(e,f)]/total_s[e]
 				total[f] += t_ef[(e,f)]/total_s[e]
-	for f in w_f:
-		for e in w_e:
-			t_ef[(e,f)] = ef_count[(e,f)]/total[f]
+	for (f_s,e_s) in bitext:
+		f_s.append(NULL)
+		for f in f_s:
+			for e in e_s:
+				t_ef[(e,f)] = ef_count[(e,f)]/total[f]
 	sys.stderr.write(".")
 
 for (f, e) in bitext:
+	f.append(NULL)
 	for (j, e_j) in enumerate(e):
 		maxI=-1
 		maxF=''
@@ -70,7 +100,8 @@ for (f, e) in bitext:
 			if maxI==-1 or t_ef[(e_j,f_i)] > t_ef[(e_j,maxF)]:
 				maxI=i
 				maxF=f_i
-		sys.stdout.write("%i-%i " % (maxI,j))
+		if maxF != NULL :
+			sys.stdout.write("%i-%i " % (maxI,j))
 	sys.stdout.write("\n")
 
 
