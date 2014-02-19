@@ -2,9 +2,10 @@
 import optparse
 import sys
 from collections import defaultdict
+import math
 #from sets import Set
 
-ITER=5
+ITER=4
 NULL="NULL"
 
 optparser = optparse.OptionParser()
@@ -22,15 +23,38 @@ fe_count = defaultdict(int)
 
 #print "loaded the sentences"
 
+p_0 = 0.000005
+lamda= 0.05
 
+prior = {}
+prior_sum=defaultdict(float)
+tuple_sent={}
+sent_dict = {}
 for (n, (f, e)) in enumerate(bitext):
 	f.append(NULL)
+	l = len(f)
+	m=len(e)
+	sent_dict[n]=[]
 	for f_i in set(f):
 		f_count[f_i] += 1
 		for e_j in set(e):
 			fe_count[(f_i,e_j)] += 1
+			sent_dict[n].append((e_j,f_i))
+			tuple_sent[(e_j,f_i)]=n
+#			if (n,f_i,e_j) in prior:
+#				continue
+#			if i==l:
+#				prior[(n,f_i,e_j)]=p_0
+#			else:
+#				prior[(n,f_i,e_j)] = (1-p_0)*math.exp(-lamda*abs(j/m-i/l))
+#			prior_sum[n] += prior[(n,f_i,e_j)]
 	for e_j in set(e):
 		e_count[e_j] += 1
+
+#for (n, (f, e)) in enumerate(bitext):
+#	for (i,f_i) in enumerate(f):
+#		for (j,e_j) in enumerate(e):
+#			prior[(n,f_i,e_j)] = prior[(n,f_i,e_j)]/prior_sum[n]
 
 dice = defaultdict(float)
 dice_sum = defaultdict(float)
@@ -39,10 +63,10 @@ for (k, (f_i, e_j)) in enumerate(fe_count.keys()):
 	dice_sum[e_j] += dice[(f_i,e_j)]
 
 
-t_ef={}
+t_ef=defaultdict(float)
 total={}
 total_s=defaultdict(float)
-ef_count = {}
+ef_count = defaultdict(float)
 
 w_e=set()
 w_f=set()
@@ -66,6 +90,12 @@ sys.stderr.write( "len(w_e), len(w_f) %i,%i\n"%(len(w_e), len(w_f)))
 #	for f in w_f:
 #		t_ef[(e,f)]=t_ef[(e,f)]/f_sum
 
+#sent_dict = {}
+#for (n, (f_s, e_s)) in enumerate(bitext):
+#	sent_dict[n]={}
+#	for e in e_s:
+#		for f in f_s:
+#			sent_dict[n].append((e,f))
 
 for (k, (f, e)) in enumerate(dice.keys()):
 	t_ef[(e,f)]=dice[(f,e)]/dice_sum[e]
@@ -86,22 +116,31 @@ for iterate in xrange(0,ITER):
 		ef_count[(e,f)]=0
 		total[f]=0
 	
-	for (f_s,e_s) in bitext:
+#	for (f_s,e_s) in bitext:
+	for (n, (f_s,e_s)) in enumerate(bitext):
 		f_s.append(NULL)
 		for e in e_s:
 			total_s[e]=0
-			for f in f_s:
-				total_s[e] += t_ef[(e,f)]
-		for e in e_s:
-			for f in f_s:
-				ef_count[(e,f)] += t_ef[(e,f)]/total_s[e]
-				total[f] += t_ef[(e,f)]/total_s[e]
+		for (e,f) in sent_dict[n]:
+#			for f in f_s:
+			total_s[e] += t_ef[(e,f)] #*prior[(n,f,e)]
+#		for e in e_s:
+#			for f in f_s:
+		for (e,f) in sent_dict[n]:
+			ef_count[(e,f)] += t_ef[(e,f)]/total_s[e]
+			total[f] += t_ef[(e,f)]/total_s[e]
 #	for (f_s,e_s) in bitext:
 #		f_s.append(NULL)
 #		for f in f_s:
 #			for e in e_s:
 	for (k, (e,f)) in enumerate(ef_count.keys()):
 		t_ef[(e,f)] = ef_count[(e,f)]/total[f]
+		if t_ef[(e,f)] == 0 or math.log(t_ef[(e,f)]) <= -5:
+			del t_ef[(e,f)]
+			del ef_count[(e,f)]
+			if (e,f) in sent_dict[tuple_sent[(e,f)]]:
+				sent_dict[tuple_sent[(e,f)]].remove((e,f))
+
 	sys.stderr.write(".")
 
 for (f, e) in bitext:
