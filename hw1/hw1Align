@@ -14,7 +14,7 @@ optparser.add_option("-t", "--threshold", dest="threshold", default=0.5, type="f
 optparser.add_option("-n", "--num_sentences", dest="num_sents", default=sys.maxint, type="int", help="Number of sentences to use for training and alignment")
 (opts, _) = optparser.parse_args()
 
-sys.stderr.write("Training with Dice's coefficient...")
+sys.stderr.write("Initializing with Dice's coefficient...")
 bitext = [[sentence.strip().split() for sentence in pair.split(' ||| ')] for pair in open(opts.bitext)][:opts.num_sents]
 #print bitext
 f_count = defaultdict(int)
@@ -135,11 +135,11 @@ for iterate in xrange(0,ITER):
 #			for e in e_s:
 	for (k, (e,f)) in enumerate(ef_count.keys()):
 		t_ef[(e,f)] = ef_count[(e,f)]/total[f]
-		if t_ef[(e,f)] == 0 or math.log(t_ef[(e,f)]) <= -5:
-			del t_ef[(e,f)]
-			del ef_count[(e,f)]
-			if (e,f) in sent_dict[tuple_sent[(e,f)]]:
-				sent_dict[tuple_sent[(e,f)]].remove((e,f))
+#		if t_ef[(e,f)] == 0 or math.log(t_ef[(e,f)]) <= -5:
+#			del t_ef[(e,f)]
+#			del ef_count[(e,f)]
+#			if (e,f) in sent_dict[tuple_sent[(e,f)]]:
+#				sent_dict[tuple_sent[(e,f)]].remove((e,f))
 
 	sys.stderr.write(".")
 

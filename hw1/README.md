@@ -6,7 +6,7 @@ There are three Python programs here (`-h` for usage):
 
 The commands are designed to work in a pipeline. For instance, this is a valid invocation:
 
-    ./align -t 0.9 -n 1000 | ./check | ./grade -n 5
+    ./hw1Align -n 1000 | ./check | ./grade -n 5
 
 
 The `data/` directory contains a fragment of the German/English Europarl corpus.
