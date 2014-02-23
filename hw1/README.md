@@ -1,6 +1,6 @@
 There are three Python programs here (`-h` for usage):
 
- - `./align` aligns words using Dice's coefficient.
+ - `./hw1Align` aligns words using IBM model 1 coefficient + a model that respect the diagonal alignment using Chahunaue et. al's (A Simple, Fast, and Effective Reprametrizatin of IBM Model 2) + a prior that is initialized use Dic's coefficients.
  - `./check` checks for out-of-bounds alignment points.
  - `./grade` computes alignment error rate.
 
