@@ -34,7 +34,7 @@ def extract_features(hyp, ref):
   N = min (len(hwords), len(rwords))
 
 #  recall = sum(1.0 for word in hwords if word in refset) / len(rwords)
-  recall = sum(1.0 for word in hwords if word in rwords)*1.0/ len(rwords)
+  recall = sum(1.0 for word in hypset if word in refset)*1.0/ len(rwords)
   recall_trunc = sum(1.0 for word in trunc_hyp if word in trunc_ref)*1.0/ len(rwords)
 
 #  return {'prec':precision, 'recall':recall}
