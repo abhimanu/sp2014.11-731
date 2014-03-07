@@ -6,6 +6,20 @@ import os, sys, math
 
 TRUNCLEN = 3
 
+def get_ngram(hwords,rwords,n):
+	hwords_n=[]
+	rqords_n=[]
+	for i in xrange(0,len(hwords)-n):
+		for j in xrange(0,n):
+			word+=(" " + hwords[i+j])
+		hwords_n.append(word)
+	for i in xrange(0,len(rwords)-n):
+		for j in xrange(0,n):
+			word+=(" " + rwords[i+j])
+		rwords_n.append(word)
+
+	return (hwords_n, rwords_n)
+
 def extract_features(hyp, ref):
   hwords = hyp.lower().split()
   rwords = ref.lower().split()
@@ -29,6 +43,7 @@ def extract_features(hyp, ref):
 		  break
   full_match = match/len(ref)
   return {'recall':recall, 'match':full_match}
+#  return {'recall':recall, 'match':full_match, 'recall_trunc':recall_trunc}
 
 argparser = argparse.ArgumentParser(prog='extract')
 argparser.add_argument('-x', '--pairs', dest='pairs', default='data/en-cs.pairs', help='Reference-Hypothesis pairs')
