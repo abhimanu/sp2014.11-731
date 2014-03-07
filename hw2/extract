@@ -27,8 +27,9 @@ def extract_features(hyp, ref):
   hwords = hyp.lower().split()
   rwords = ref.lower().split()
   refset = set(rwords)
-  trunc_hyp = [word[:TRUNCLEN] for word in hwords]
-  trunc_ref = [word[:TRUNCLEN] for word in rwords]
+  hypset = set(hwords)
+  trunc_hyp = set([word[:TRUNCLEN] for word in hwords])
+  trunc_ref = set([word[:TRUNCLEN] for word in rwords])
   precision = sum(1.0 for word in hwords if word in refset) / len(hwords)
   N = min (len(hwords), len(rwords))
 
