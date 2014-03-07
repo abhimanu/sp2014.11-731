@@ -17,8 +17,11 @@ def get_ngram(hwords,rwords,n):
 		for j in xrange(0,n):
 			word+=(" " + rwords[i+j])
 		rwords_n.append(word)
-
 	return (hwords_n, rwords_n)
+
+#def get_BLUE(hwords, nwords):
+#	N = min (len(hwords), len(nwords))
+	
 
 def extract_features(hyp, ref):
   hwords = hyp.lower().split()
@@ -27,6 +30,8 @@ def extract_features(hyp, ref):
   trunc_hyp = [word[:TRUNCLEN] for word in hwords]
   trunc_ref = [word[:TRUNCLEN] for word in rwords]
   precision = sum(1.0 for word in hwords if word in refset) / len(hwords)
+  N = min (len(hwords), len(rwords))
+
 #  recall = sum(1.0 for word in hwords if word in refset) / len(rwords)
   recall = sum(1.0 for word in hwords if word in rwords)*1.0/ len(rwords)
   recall_trunc = sum(1.0 for word in trunc_hyp if word in trunc_ref)*1.0/ len(rwords)
