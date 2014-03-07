@@ -14,12 +14,21 @@ def extract_features(hyp, ref):
   trunc_ref = [word[:TRUNCLEN] for word in rwords]
   precision = sum(1.0 for word in hwords if word in refset) / len(hwords)
 #  recall = sum(1.0 for word in hwords if word in refset) / len(rwords)
-  recall = sum(1.0 for word in hwords if word in refset) / len(refset)
-  recall_trunc = sum(1.0 for word in trunc_hyp if word in trunc_ref) / len(refset)
+  recall = sum(1.0 for word in hwords if word in rwords)*1.0/ len(rwords)
+  recall_trunc = sum(1.0 for word in trunc_hyp if word in trunc_ref)*1.0/ len(rwords)
 
 #  return {'prec':precision, 'recall':recall}
-  recall =recall*0.5+0.5*recall_trunc 
-  return {'recall':recall}
+  recall = recall*0.5+0.5*recall_trunc 
+  match=0
+  for i in xrange(0,len(ref)):
+	  if i>=len(hyp):
+		  break
+	  if hyp[i]==ref[i]:
+		  match+=1
+	  else:
+		  break
+  full_match = match/len(ref)
+  return {'recall':recall, 'match':full_match}
 
 argparser = argparse.ArgumentParser(prog='extract')
 argparser.add_argument('-x', '--pairs', dest='pairs', default='data/en-cs.pairs', help='Reference-Hypothesis pairs')
