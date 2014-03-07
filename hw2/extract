@@ -4,13 +4,21 @@ import argparse
 import json
 import os, sys, math
 
+TRUNCLEN = 3
+
 def extract_features(hyp, ref):
   hwords = hyp.lower().split()
   rwords = ref.lower().split()
   refset = set(rwords)
+  trunc_hyp = [word[:TRUNCLEN] for word in hwords]
+  trunc_ref = [word[:TRUNCLEN] for word in rwords]
   precision = sum(1.0 for word in hwords if word in refset) / len(hwords)
-  recall = sum(1.0 for word in hwords if word in refset) / len(rwords)
+#  recall = sum(1.0 for word in hwords if word in refset) / len(rwords)
+  recall = sum(1.0 for word in hwords if word in refset) / len(refset)
+  recall_trunc = sum(1.0 for word in trunc_hyp if word in trunc_ref) / len(refset)
+
 #  return {'prec':precision, 'recall':recall}
+  recall =recall*0.5+0.5*recall_trunc 
   return {'recall':recall}
 
 argparser = argparse.ArgumentParser(prog='extract')
