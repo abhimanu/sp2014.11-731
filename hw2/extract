@@ -9,7 +9,9 @@ def extract_features(hyp, ref):
   rwords = ref.lower().split()
   refset = set(rwords)
   precision = sum(1.0 for word in hwords if word in refset) / len(hwords)
-  return {'prec':precision}
+  recall = sum(1.0 for word in hwords if word in refset) / len(rwords)
+#  return {'prec':precision, 'recall':recall}
+  return {'recall':recall}
 
 argparser = argparse.ArgumentParser(prog='extract')
 argparser.add_argument('-x', '--pairs', dest='pairs', default='data/en-cs.pairs', help='Reference-Hypothesis pairs')
