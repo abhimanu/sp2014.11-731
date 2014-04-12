@@ -20,6 +20,7 @@ sys.stderr.write('Decoding %s...\n' % (opts.input,))
 input_sents = [tuple(line.strip().split()) for line in open(opts.input).readlines()[:opts.num_sents]]
 
 hypothesis = namedtuple('hypothesis', 'logprob, lm_state, predecessor, phrase')
+# default implementatio
 for f in input_sents:
     # The following code implements a DP monotone decoding
     # algorithm (one that doesn't permute the target phrases).
