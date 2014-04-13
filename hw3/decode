@@ -26,12 +26,12 @@ hypo = namedtuple('hypo', 'logprob, lm_state, backpointer, phrase')
 skip_k_hypo = namedtuple('skip_k_hypo', 'logprob, lm_state, skipped, phrase, f, backpointer')
 
 class Decoder(object):
-    def __init__(self, tm, lm, skip_K=0, stax_size=1, verbose=False):
-        self.tm = tm
-        self.lm = lm
+    def __init__(self, skip_K=0, stax_size=1, verbose=False, tm, lm):
         self.skip_K = skip_K
         self.stax_size = stax_size
         self.verbose = verbose
+        self.tm = tm
+        self.lm = lm
 
 
 # This is the original default method provided with the assignment
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     tm = models.TM(opts.tm, sys.maxint)
     lm = models.LM(opts.lm)
     sys.stderr.write('Decoding %s...\n' % (opts.input,))
-    decoder = Decoder(tm,lm,opts.skip_K,opts.bs,opts.verbose)
+    decoder = Decoder(opts.skip_K,opts.bs,opts.verbose,tm,lm)
     input_sents = [tuple(line.strip().split()) for line in open(opts.input).readlines()[:opts.num_sents]]
     for fs in input_sents:
         output = decoder.decode(fs)
