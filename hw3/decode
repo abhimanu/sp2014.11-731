@@ -26,7 +26,7 @@ hypo = namedtuple('hypo', 'logprob, lm_state, backpointer, phrase')
 skip_k_hypo = namedtuple('skip_k_hypo', 'logprob, lm_state, skipped, phrase, f, backpointer')
 
 class Decoder(object):
-    def __init__(self, skip_K=0, stax_size=1, verbose=False, tm, lm):
+    def __init__(self, skip_K, stax_size, verbose, tm, lm):
         self.skip_K = skip_K
         self.stax_size = stax_size
         self.verbose = verbose
