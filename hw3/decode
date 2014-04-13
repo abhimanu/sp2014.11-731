@@ -1,64 +1,133 @@
 #!/usr/bin/env python
 import argparse
 import sys
-import models
+#from models import PhraseTable, LanguageModel
+import models 
 import heapq
 from collections import namedtuple
 
-parser = argparse.ArgumentParser(description='Simple phrase based decoder.')
-parser.add_argument('-i', '--input', dest='input', default='data/input', help='File containing sentences to translate (default=data/input)')
-parser.add_argument('-t', '--translation-model', dest='tm', default='data/tm', help='File containing translation model (default=data/tm)')
-parser.add_argument('-s', '--stack-size', dest='s', default=100, type=int, help='Maximum stack size (default=100)')
-parser.add_argument('-n', '--num_sentences', dest='num_sents', default=sys.maxint, type=int, help='Number of sentences to decode (default=no limit)')
-parser.add_argument('-l', '--language-model', dest='lm', default='data/lm', help='File containing ARPA-format language model (default=data/lm)')
-parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=False,  help='Verbose mode (default=off)')
-opts = parser.parse_args()
 
-tm = models.TM(opts.tm, sys.maxint)
-lm = models.LM(opts.lm)
-sys.stderr.write('Decoding %s...\n' % (opts.input,))
-input_sents = [tuple(line.strip().split()) for line in open(opts.input).readlines()[:opts.num_sents]]
 
-hypothesis = namedtuple('hypothesis', 'logprob, lm_state, predecessor, phrase')
-# default implementatio
-for f in input_sents:
-    # The following code implements a DP monotone decoding
-    # algorithm (one that doesn't permute the target phrases).
-    # Hence all hypotheses in stacks[i] represent translations of 
-    # the first i words of the input sentence.
-    # HINT: Generalize this so that stacks[i] contains translations
-    # of any i words (remember to keep track of which words those
-    # are, and to estimate future costs)
-    initial_hypothesis = hypothesis(0.0, lm.begin(), None, None)
+def get_logprob(h):
+    return h.logprob
 
-    stacks = [{} for _ in f] + [{}]
-    stacks[0][lm.begin()] = initial_hypothesis
-    for i, stack in enumerate(stacks[:-1]):
-        # extend the top s hypotheses in the current stack
-        for h in heapq.nlargest(opts.s, stack.itervalues(), key=lambda h: h.logprob): # prune
-            for j in xrange(i+1,len(f)+1):
-                if f[i:j] in tm:
-                    for phrase in tm[f[i:j]]:
-                        logprob = h.logprob + phrase.logprob
+def get_eng(h):
+    return '' if h.backpointer is None else '%s%s ' % (
+        get_eng(h.backpointer), ('' if h.phrase is None else h.phrase.english))
+
+
+def pop(in_list):
+    for i in range(len(in_list)):
+        yield in_list[i], in_list[:i] + in_list[i + 1:]
+
+def get_tm_logprob(h):
+    return 0.0 if h.backpointer is None else h.phrase.logprob + get_tm_logprob(h.backpointer)
+
+hypo = namedtuple('hypo', 'logprob, lm_state, backpointer, phrase')
+skip_k_hypo = namedtuple('skip_k_hypo', 'logprob, lm_state, skipped, phrase, f, backpointer')
+
+class Decoder(object):
+    def __init__(self, tm, lm, skip_K=0, stax_size=1, verbose=False):
+        self.tm = tm
+        self.lm = lm
+        self.skip_K = skip_K
+        self.stax_size = stax_size
+        self.verbose = verbose
+
+
+# This is the original default method provided with the assignment
+# i.e. the monotne decoder. My code by default doesnt call this 
+    def decode_default(self, fs):
+        stax = [{} for _ in range(len(fs) + 1)]
+        stax[0][lm.begin()] = hypo(0.0, lm.begin(), None, None)
+        for i, stack in enumerate(stax[:-1]):
+            for h in heapq.nlargest(self.stax_size, stack.itervalues(), key=get_logprob):
+                for j in xrange(i + 1, len(fs) + 1):
+                    fp = fs[i:j]
+                    for ep in tm.get(fp, ()):
+                        logprob = h.logprob + ep.logprob
                         lm_state = h.lm_state
-                        for word in phrase.english.split():
-                            (lm_state, word_logprob) = lm.score(lm_state, word)
+                        for word in ep.english.split():
+                            lm_state, word_logprob = lm.score(lm_state, word)
                             logprob += word_logprob
-                        logprob += lm.end(lm_state) if j == len(f) else 0.0
-                        new_hypothesis = hypothesis(logprob, lm_state, h, phrase)
-                        if lm_state not in stacks[j] or stacks[j][lm_state].logprob < logprob: # second case is recombination
-                            stacks[j][lm_state] = new_hypothesis 
+                        if j == len(fs):
+                            logprob += lm.end(lm_state)
+                        nw_h = hypo(logprob, lm_state, h, ep)
+                        if lm_state not in stax[j] or stax[j][lm_state].logprob < logprob:
+                            stax[j][lm_state] = nw_h
 
-    # find best translation by looking at the best scoring hypothesis
-    # on the last stack
-    winner = max(stacks[-1].itervalues(), key=lambda h: h.logprob)
-    def extract_english_recursive(h):
-        return '' if h.predecessor is None else '%s%s ' % (extract_english_recursive(h.predecessor), h.phrase.english)
-    print extract_english_recursive(winner)
+        winner = max(stax[-1].itervalues(), key=get_logprob)
+        return get_eng(winner)
 
-    if opts.verbose:
-        def extract_tm_logprob(h):
-            return 0.0 if h.predecessor is None else h.phrase.logprob + extract_tm_logprob(h.predecessor)
-        tm_logprob = extract_tm_logprob(winner)
-        sys.stderr.write('LM = %f, TM = %f, Total = %f\n' % 
-            (winner.logprob - tm_logprob, tm_logprob, winner.logprob))
+# This method uses the skip K method of decoding from the COLING 2004 submission: 
+# Reordering constraints for phrase-based statistical machine translation by Zens et al.
+    def decode(self, fs):
+        all_stax = [[{} for _ in range(self.skip_K + 1)] for _ in range(len(fs) + 1)]
+        all_stax[0][0][(lm.begin(), ())] = skip_k_hypo(0.0,lm.begin(),(),None,None,None)
+        for i, ns_stack in enumerate(all_stax[:-1]):
+            for num_skipped, stack in reversed(list(enumerate(ns_stack))):
+                for h in heapq.nlargest(self.stax_size, stack.itervalues(), key=get_logprob):
+                    max_j = len(fs) + 1
+                    for j in xrange(i + 1, max_j):
+                        fp = fs[i:j]
+                        for ep in tm.get(fp, ()):
+                            logprob = h.logprob + ep.logprob
+                            lm_state = h.lm_state
+                            for word in ep.english.split():
+                                lm_state, word_logprob = lm.score(lm_state, word)
+                                logprob += word_logprob
+                            if j == len(fs) and num_skipped == 0:
+                                logprob += lm.end(lm_state)
+                            nw_h = skip_k_hypo(logprob,lm_state,h.skipped,ep,fp,h)
+                            nw_stack = all_stax[j][len(nw_h.skipped)]
+                            nw_key = (lm_state, nw_h.skipped)
+                            if nw_key not in nw_stack or nw_stack[nw_key].logprob < logprob:
+                                nw_stack[nw_key] = nw_h
+                    if num_skipped < self.skip_K:
+                        for j in xrange(i + 1, max_j):
+                            fp = fs[i:j]
+                            for ep in tm.get(fp, ()):
+                                lm_state = h.lm_state
+                                logprob = h.logprob + ep.logprob
+                                skipped = h.skipped + ((ep, fp),)
+                                nw_h = skip_k_hypo(logprob,lm_state,skipped,None,None,h)
+                                nw_stack = all_stax[j][len(nw_h.skipped)]
+                                nw_key = (lm_state, nw_h.skipped)
+                                if nw_key not in nw_stack or nw_stack[nw_key].logprob < logprob:
+                                    nw_stack[nw_key] = nw_h
+                    for (ep, fp), remaining in pop(h.skipped):
+                        lm_state = h.lm_state
+                        logprob = h.logprob
+                        for word in ep.english.split():
+                            lm_state, word_logprob = lm.score(lm_state, word)
+                            logprob += word_logprob
+                        if i == len(fs) and len(remaining) == 0:
+                            logprob += lm.end(lm_state)
+                        nw_h = skip_k_hypo(logprob,lm_state,remaining,ep,fp,h)
+                        nw_stack = all_stax[i][len(nw_h.skipped)]
+                        nw_key = (lm_state, nw_h.skipped)
+                        if nw_key not in nw_stack or nw_stack[nw_key].logprob < logprob:
+                            nw_stack[nw_key] = nw_h
+        winner = max(all_stax[-1][0].itervalues(), key=get_logprob)
+        return get_eng(winner)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Simple phrase based decoder.')
+    parser.add_argument('-i', '--input', dest='input', default='data/input',help='File containing sentences to translate (default=data/input)')
+    parser.add_argument('-t', '--translation-model', dest='tm', default='data/tm',help='File containing translation model (default=data/tm)')
+    parser.add_argument('-b', '--beam-size', dest='bs', default=90, type=int,help='Maxi beam size (default=90)')
+    parser.add_argument('-k', '--skip-k', dest='skip_K', default=21, type=int,help='Max no. of phrase that may be skipped (default=21)')
+    parser.add_argument('-n', '--num_sentences', dest='num_sents', default=sys.maxint, type=int,help='Number of sentences to decode (default=no limit)')
+    parser.add_argument('-l', '--language-model', dest='lm', default='data/lm',help='File containing ARPA-format language model (default=data/lm)')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=False,help='Verbose mode (default=off)')
+    opts = parser.parse_args()
+
+    tm = models.TM(opts.tm, sys.maxint)
+    lm = models.LM(opts.lm)
+    sys.stderr.write('Decoding %s...\n' % (opts.input,))
+    decoder = Decoder(tm,lm,opts.skip_K,opts.bs,opts.verbose)
+    input_sents = [tuple(line.strip().split()) for line in open(opts.input).readlines()[:opts.num_sents]]
+    for fs in input_sents:
+        output = decoder.decode(fs)
+        print output
